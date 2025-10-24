@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Oct 19, 2025 at 10:46 AM
+-- Generation Time: Oct 20, 2025 at 03:41 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -149,7 +149,9 @@ INSERT INTO `kupon_history` (`id`, `user_id`, `order_id`, `jumlah_kupon`, `tangg
 (55, 12, 40, 1, '2025-10-19 07:54:48', 'Kupon dari pemesanan makanan'),
 (56, 12, 40, 1, '2025-10-19 07:54:48', 'Kupon dari pemesanan makanan'),
 (57, 12, 40, 1, '2025-10-19 07:54:48', 'Kupon dari pemesanan makanan'),
-(58, 12, 40, 1, '2025-10-19 07:54:48', 'Kupon dari pemesanan makanan');
+(58, 12, 40, 1, '2025-10-19 07:54:48', 'Kupon dari pemesanan makanan'),
+(59, 13, 41, 1, '2025-10-20 12:11:09', 'Kupon dari pemesanan makanan'),
+(60, 13, 41, 1, '2025-10-20 12:11:09', 'Kupon dari pemesanan makanan');
 
 -- --------------------------------------------------------
 
@@ -293,7 +295,8 @@ INSERT INTO `orders` (`id`, `week_id`, `year_id`, `plant_id`, `place_id`, `shift
 (37, 2, 1, 5, 5, 1, '2025-10-18 10:53:24', 11),
 (38, 3, 1, 6, 7, 1, '2025-10-19 05:39:09', 10),
 (39, 1, 1, 1, 1, 1, '2025-10-19 05:54:16', 10),
-(40, 1, 1, 1, 1, 2, '2025-10-19 07:06:52', 12);
+(40, 1, 1, 1, 1, 2, '2025-10-19 07:06:52', 12),
+(41, 1, 1, 1, 1, 1, '2025-10-20 12:11:09', 13);
 
 -- --------------------------------------------------------
 
@@ -445,7 +448,14 @@ INSERT INTO `order_menus` (`id`, `order_id`, `menu_id`, `makan`, `kupon`, `libur
 (193, 40, 4, 0, 1, 0),
 (194, 40, 5, 0, 1, 0),
 (195, 40, 6, 0, 0, 1),
-(196, 40, 7, 0, 0, 1);
+(196, 40, 7, 0, 0, 1),
+(197, 41, 18, 1, 0, 0),
+(198, 41, 19, 1, 0, 0),
+(199, 41, 3, 1, 0, 0),
+(200, 41, 4, 0, 1, 0),
+(201, 41, 5, 0, 1, 0),
+(202, 41, 6, 0, 0, 1),
+(203, 41, 7, 0, 0, 1);
 
 --
 -- Triggers `order_menus`
@@ -494,7 +504,9 @@ CREATE TABLE `pic_kantin` (
 --
 
 INSERT INTO `pic_kantin` (`id`, `nama`, `departemen`, `gmail`, `password`, `created_at`) VALUES
-(1, 'PIC Kantin 1', 'PICK001', 'kantin1@example.com', '482c811da5d5b4bc6d497ffa98491e38', '2025-10-13 14:02:29');
+(1, 'PIC Kantin 1', 'PICK001', 'kantin1@example.com', '482c811da5d5b4bc6d497ffa98491e38', '2025-10-13 14:02:29'),
+(4, 'Andri GGS', '4', 'andri@gmail.com', '6bd3108684ccc9dfd40b126877f850b0', '2025-10-20 10:56:54'),
+(5, 'eeng', '2', 'eeng@gmail.com', 'c58ee092d8b7aa80048ce3e7a721e08a', '2025-10-20 11:47:04');
 
 -- --------------------------------------------------------
 
@@ -650,7 +662,8 @@ INSERT INTO `users` (`id`, `nama`, `nip`, `gmail`, `password`, `created_at`, `av
 (7, 'mamang eeng', '25454511', 'mamang@gmail.com', '3bd3feb3f927d7c1dace62e7997bcd94', '2025-10-11 03:49:21', 'assets/img/avatars/avatar_u7_20251011063559.png', 'Operations', 0, '2025-10-18 12:07:11'),
 (10, 'manda', '6566565', 'manda@gmail.com', '86cc266e1c70ed60524b9f23c79e3a28', '2025-10-18 02:42:36', 'assets/img/avatars/avatar_u10_20251019051901.png', 'Procurement', 12, '2025-10-19 05:54:16'),
 (11, 'mahdi', '', 'mahdi@gmail.com', 'f9c24b8f961d48841a9838cca5274d8d', '2025-10-18 10:45:37', NULL, NULL, 3, '2025-10-18 12:07:11'),
-(12, 'hantu', '', 'hantu@gmail.com', '805a52ccb5200f0d38cf57dda28ba545', '2025-10-19 07:06:14', NULL, NULL, 19, '2025-10-19 07:54:48');
+(12, 'hantu', '', 'hantu@gmail.com', '805a52ccb5200f0d38cf57dda28ba545', '2025-10-19 07:06:14', NULL, NULL, 19, '2025-10-19 07:54:48'),
+(13, 'kamen', '', 'kamen@gmail.com', 'ff24af3e638218b0f26bd6f2113131d1', '2025-10-20 12:10:09', NULL, 'Human Resources', 2, '2025-10-20 12:11:09');
 
 -- --------------------------------------------------------
 
@@ -918,7 +931,7 @@ ALTER TABLE `department`
 -- AUTO_INCREMENT for table `kupon_history`
 --
 ALTER TABLE `kupon_history`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=59;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=61;
 
 --
 -- AUTO_INCREMENT for table `menu`
@@ -942,19 +955,19 @@ ALTER TABLE `nama_vendor`
 -- AUTO_INCREMENT for table `orders`
 --
 ALTER TABLE `orders`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=41;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=42;
 
 --
 -- AUTO_INCREMENT for table `order_menus`
 --
 ALTER TABLE `order_menus`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=197;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=204;
 
 --
 -- AUTO_INCREMENT for table `pic_kantin`
 --
 ALTER TABLE `pic_kantin`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT for table `place`
@@ -990,7 +1003,7 @@ ALTER TABLE `shift`
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` int(11) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
+  MODIFY `id` int(11) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=14;
 
 --
 -- AUTO_INCREMENT for table `vendorkantin`
