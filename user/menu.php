@@ -8,30 +8,61 @@ if ($_SESSION['role'] !== 'user') {
 // Koneksi ke database
 include 'config/db.php';
 
-// Ambil week_id dari filter
+// Ambil parameter filter
 $selected_week = isset($_GET['week_id']) ? (int)$_GET['week_id'] : 0;
+$selected_vendor = isset($_GET['vendor_id']) ? (int)$_GET['vendor_id'] : 0;
 
-// Ambil daftar week untuk dropdown filter
-$weeks_result = $conn->query("SELECT DISTINCT week_id 
-                             FROM menu 
-                             ORDER BY week_id ASC");
+// Ambil week yang sedang aktif (terbaru)
+$current_week_result = $conn->query("SELECT id, week_number FROM week ORDER BY week_number DESC LIMIT 1");
+$current_week = $current_week_result->fetch_assoc();
 
-// Query daftar menu + gambar
-if ($selected_week > 0) {
-    $sql = "SELECT m.*, mi.image_url  
-            FROM menu m 
-            LEFT JOIN menu_images mi ON m.week_id = mi.week_id AND m.day = mi.day 
-            WHERE m.week_id = $selected_week
-            ORDER BY FIELD(m.day, 'Senin','Selasa','Rabu','Kamis','Jumat','Sabtu','Minggu') ASC";
-} else {
-    $sql = "SELECT m.*, mi.image_url 
-            FROM menu m 
-            LEFT JOIN menu_images mi ON m.week_id = mi.week_id AND m.day = mi.day
-            ORDER BY m.week_id ASC, 
-                     FIELD(m.day, 'Senin','Selasa','Rabu','Kamis','Jumat','Sabtu','Minggu') ASC";
+// Jika tidak ada week yang dipilih, set ke week terbaru
+if ($selected_week === 0 && $current_week) {
+    $selected_week = $current_week['id'];
 }
 
-$result = $conn->query($sql);
+// Ambil daftar week yang memiliki menu (dari tabel week)
+$weeks_result = $conn->query("SELECT DISTINCT w.id, w.week_number 
+                             FROM week w 
+                             JOIN menu m ON w.id = m.week_id 
+                             ORDER BY w.week_number DESC");
+
+// Ambil daftar vendor yang aktif
+$vendors_result = $conn->query("SELECT id, name FROM nama_vendor WHERE is_active = 1 ORDER BY name ASC");
+
+// Query daftar menu + gambar + vendor
+$sql = "SELECT m.*, mi.image_url, nv.name as vendor_name  
+        FROM menu m 
+        LEFT JOIN menu_images mi ON m.week_id = mi.week_id AND m.vendor_id = mi.vendor_id AND m.day = mi.day 
+        JOIN nama_vendor nv ON m.vendor_id = nv.id 
+        WHERE 1=1";
+
+$params = [];
+$types = "";
+
+if ($selected_week > 0) {
+    $sql .= " AND m.week_id = ?";
+    $params[] = $selected_week;
+    $types .= "i";
+}
+
+if ($selected_vendor > 0) {
+    $sql .= " AND m.vendor_id = ?";
+    $params[] = $selected_vendor;
+    $types .= "i";
+}
+
+$sql .= " ORDER BY m.week_id ASC, 
+          FIELD(m.day, 'Senin','Selasa','Rabu','Kamis','Jumat','Sabtu','Minggu') ASC,
+          nv.name ASC";
+
+// Prepare statement
+$stmt = $conn->prepare($sql);
+if ($params) {
+    $stmt->bind_param($types, ...$params);
+}
+$stmt->execute();
+$result = $stmt->get_result();
 ?>
 
 <!DOCTYPE html>
@@ -80,7 +111,7 @@ $result = $conn->query($sql);
     <style>
       .menu-container {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
         gap: 20px;
         margin-top: 20px;
       }
@@ -99,28 +130,51 @@ $result = $conn->query($sql);
       }
       .menu-card img {
         width: 100%;
-        height: 150px;
+        height: 180px;
         object-fit: cover;
       }
       .menu-card-body {
-        padding: 10px;
+        padding: 15px;
       }
       .menu-card-body h5 {
         font-size: 16px;
-        margin-bottom: 5px;
+        margin-bottom: 8px;
+        color: #333;
       }
       .menu-card-body p {
         font-size: 14px;
-        margin: 0;
+        margin: 4px 0;
         color: #666;
       }
+      .vendor-badge {
+        background: #696cff;
+        color: white;
+        padding: 3px 8px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: bold;
+        display: inline-block;
+        margin-bottom: 8px;
+      }
       .filter-form {
-        max-width: 250px;
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
         margin-bottom: 20px;
       }
+      .filter-row {
+        display: flex;
+        gap: 15px;
+        flex-wrap: wrap;
+        align-items: end;
+      }
+      .filter-group {
+        flex: 1;
+        min-width: 200px;
+      }
       .detail-btn {
-        margin-top: 8px;
-        padding: 5px 12px;
+        margin-top: 10px;
+        padding: 6px 15px;
         background: #696cff;
         color: white;
         border: none;
@@ -128,9 +182,25 @@ $result = $conn->query($sql);
         cursor: pointer;
         font-size: 12px;
         transition: background 0.3s;
+        width: 100%;
       }
       .detail-btn:hover {
         background: #5a5fe3;
+      }
+      .reset-btn {
+        background: #6c757d;
+        color: white;
+        border: none;
+        padding: 8px 15px;
+        border-radius: 4px;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-block;
+      }
+      .reset-btn:hover {
+        background: #5a6268;
+        color: white;
+        text-decoration: none;
       }
       
       /* Modal Styles */
@@ -147,11 +217,13 @@ $result = $conn->query($sql);
       .modal-content {
         background-color: #fff;
         margin: 5% auto;
-        padding: 20px;
+        padding: 25px;
         border-radius: 8px;
         width: 90%;
         max-width: 500px;
         box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        max-height: 80vh;
+        overflow-y: auto;
       }
       .close {
         color: #aaa;
@@ -159,13 +231,14 @@ $result = $conn->query($sql);
         font-size: 28px;
         font-weight: bold;
         cursor: pointer;
+        line-height: 1;
       }
       .close:hover {
         color: #000;
       }
       .modal-header {
         border-bottom: 1px solid #eee;
-        padding-bottom: 10px;
+        padding-bottom: 15px;
         margin-bottom: 15px;
       }
       .modal-body {
@@ -175,7 +248,26 @@ $result = $conn->query($sql);
         background: #f8f9fa;
         padding: 15px;
         border-radius: 5px;
-        margin-top: 10px;
+        margin-top: 15px;
+        border-left: 4px solid #696cff;
+      }
+      .menu-image {
+        width: 100%;
+        height: 200px;
+        object-fit: cover;
+        border-radius: 8px;
+        margin-bottom: 15px;
+      }
+      .no-results {
+        text-align: center;
+        padding: 40px;
+        color: #6c757d;
+      }
+      .no-results i {
+        font-size: 48px;
+        margin-bottom: 15px;
+        display: block;
+        color: #dee2e6;
       }
     </style>
   </head>
@@ -201,38 +293,74 @@ $result = $conn->query($sql);
               <div class="card shadow-sm p-4">
                 <h4 class="mb-4"><i class="bx bx-food-menu"></i> Daftar Menu</h4>
 
-                <!-- Filter Week -->
-                <form class="filter-form" method="GET" action="">
-                  <label for="week_id" class="form-label">Filter by Week:</label>
-                  <select class="form-select" name="week_id" id="week_id" onchange="this.form.submit()">
-                    <option value="0">All Weeks</option>
-                    <?php while($week = $weeks_result->fetch_assoc()): ?>
-                      <option value="<?= $week['week_id']; ?>" <?= ($week['week_id']==$selected_week) ? 'selected' : ''; ?>>
-                        Week <?= $week['week_id']; ?>
-                      </option>
-                    <?php endwhile; ?>
-                  </select>
-                </form>
+                <!-- Filter Section -->
+                <div class="filter-form">
+                  <h5 class="mb-3"><i class="bx bx-filter"></i> Filter Menu</h5>
+                  <form method="GET" action="">
+                    <div class="filter-row">
+                      <div class="filter-group">
+                        <label for="week_id" class="form-label">Week</label>
+                        <select class="form-select" name="week_id" id="week_id">
+                          <?php while($week = $weeks_result->fetch_assoc()): ?>
+                            <option value="<?= $week['id']; ?>" <?= ($week['id']==$selected_week) ? 'selected' : ''; ?>>
+                              Week <?= $week['week_number']; ?>
+                            </option>
+                          <?php endwhile; ?>
+                        </select>
+                      </div>
+                      
+                      <div class="filter-group">
+                        <label for="vendor_id" class="form-label">Vendor</label>
+                        <select class="form-select" name="vendor_id" id="vendor_id">
+                          <option value="0">Semua Vendor</option>
+                          <?php 
+                          // Reset pointer result vendor
+                          $vendors_result->data_seek(0); 
+                          while($vendor = $vendors_result->fetch_assoc()): ?>
+                            <option value="<?= $vendor['id']; ?>" <?= ($vendor['id']==$selected_vendor) ? 'selected' : ''; ?>>
+                              <?= htmlspecialchars($vendor['name']); ?>
+                            </option>
+                          <?php endwhile; ?>
+                        </select>
+                      </div>
+                      
+                      <div class="filter-group">
+                        <button type="submit" class="btn btn-primary" style="margin-top: 0;">
+                          <i class="bx bx-search"></i> Terapkan Filter
+                        </button>
+                        <a href="menu.php" class="reset-btn">
+                          <i class="bx bx-reset"></i> Reset
+                        </a>
+                      </div>
+                    </div>
+                  </form>
+                </div>
 
                 <!-- Menu List -->
                 <div class="menu-container">
                   <?php if ($result->num_rows > 0): ?>
                     <?php while($row = $result->fetch_assoc()): ?>
-                      <div class="menu-card" onclick="showMenuDetail(<?= htmlspecialchars(json_encode($row)); ?>)">
+                      <div class="menu-card">
                         <img src="<?= $row['image_url'] ? '../' . $row['image_url'] : '../assets/img/menu/no-image.jpg'; ?>" 
-                          alt="<?= htmlspecialchars($row['menu_name']); ?>">
+                          alt="<?= htmlspecialchars($row['menu_name']); ?>"
+                          onerror="this.src='../assets/img/menu/no-image.jpg'">
                         <div class="menu-card-body">
+                          <div class="vendor-badge"><?= htmlspecialchars($row['vendor_name']); ?></div>
                           <h5><?= htmlspecialchars($row['menu_name']); ?></h5>
-                          <p>Day: <?= $row['day']; ?></p>
-                          <p>Week <?= $row['week_id']; ?></p>
-                          <button class="detail-btn" onclick="event.stopPropagation(); showMenuDetail(<?= htmlspecialchars(json_encode($row)); ?>)">
-                            <i class="bx bx-info-circle"></i> Detail
+                          <p><strong>Hari:</strong> <?= $row['day']; ?></p>
+                          <p><strong>Week:</strong> <?= $row['week_id']; ?></p>
+                          <button class="detail-btn" onclick="showMenuDetail(<?= htmlspecialchars(json_encode($row)); ?>)">
+                            <i class="bx bx-info-circle"></i> Lihat Detail
                           </button>
                         </div>
                       </div>
                     <?php endwhile; ?>
                   <?php else: ?>
-                    <p class="text-muted">Tidak ada menu untuk week yang dipilih.</p>
+                    <div class="no-results">
+                      <i class="bx bx-food-menu"></i>
+                      <h5>Tidak ada menu ditemukan</h5>
+                      <p>Silakan coba dengan filter yang berbeda.</p>
+                    </div>
                   <?php endif; ?>
                 </div>
 
@@ -303,15 +431,21 @@ $result = $conn->query($sql);
         
         // Buat konten detail
         let content = `
+          <img src="${menuData.image_url ? '../' + menuData.image_url : '../assets/img/menu/no-image.jpg'}" 
+               alt="${menuData.menu_name}" 
+               class="menu-image"
+               onerror="this.src='../assets/img/menu/no-image.jpg'">
+          
           <div class="row">
-            <div class="col-md-4">
-              <img src="${menuData.image_url ? '../' + menuData.image_url : '../assets/img/menu/no-image.jpg'}" 
-                   alt="${menuData.menu_name}" 
-                   style="width: 100%; height: 150px; object-fit: cover; border-radius: 5px;">
+            <div class="col-6">
+              <p><strong>Vendor:</strong></p>
+              <p><strong>Hari:</strong></p>
+              <p><strong>Week:</strong></p>
             </div>
-            <div class="col-md-8">
-              <p><strong>Hari:</strong> ${menuData.day}</p>
-              <p><strong>Week:</strong> ${menuData.week_id}</p>
+            <div class="col-6">
+              <p><span class="vendor-badge">${menuData.vendor_name}</span></p>
+              <p>${menuData.day}</p>
+              <p>${menuData.week_id}</p>
             </div>
           </div>
         `;
@@ -321,7 +455,7 @@ $result = $conn->query($sql);
           content += `
             <div class="keterangan-content">
               <h6><strong>Keterangan Menu:</strong></h6>
-              <p>${menuData.keterangan}</p>
+              <p style="white-space: pre-line;">${menuData.keterangan}</p>
             </div>
           `;
         } else {
@@ -355,8 +489,23 @@ $result = $conn->query($sql);
           closeModal();
         }
       });
+
+      // Auto-submit form ketika filter berubah
+      document.getElementById('week_id').addEventListener('change', function() {
+        this.form.submit();
+      });
+      
+      document.getElementById('vendor_id').addEventListener('change', function() {
+        this.form.submit();
+      });
     </script>
   </body>
 </html>
 
-<?php $conn->close(); ?>
+<?php 
+// Tutup koneksi - approach yang lebih aman
+if (isset($conn) && $conn) {
+    $conn->close();
+    $conn = null;
+}
+?>

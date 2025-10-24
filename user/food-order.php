@@ -16,9 +16,10 @@
       content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0"
     />
 
-    <title>ParaCanteen - Food Order</title>
+    <title>ParaCanteen</title>
 
     <meta name="description" content="" />
+
 
     <!-- Favicon -->
     <link rel="icon" type="image/x-icon" href="../assets/img/favicon/favicon.ico" />
@@ -44,7 +45,8 @@
 
     <link rel="stylesheet" href="../assets/vendor/libs/apex-charts/apex-charts.css" />
 
-    <!-- Page CSS -->
+    <!-- animate orang -->
+    <script src="https://unpkg.com/@lottiefiles/dotlottie-wc@0.8.1/dist/dotlottie-wc.js" type="module"></script>
 
     <!-- Helpers -->
     <script src="../assets/vendor/js/helpers.js"></script>
@@ -59,7 +61,7 @@
     <div class="layout-wrapper layout-content-navbar">
       <div class="layout-container">
         <!-- Menu -->
-,        <?php include 'layout/sidebar.php'; ?>
+        <?php include 'layout/sidebar.php'; ?>
         
         <!-- / Menu -->
 
@@ -75,19 +77,28 @@
             <!-- Content -->
       <div class="container mt-4">
         <?php
-  include 'config/db.php';
-        // Get years
-        $years = [];
-        $yearRes = $conn->query("SELECT * FROM year ORDER BY year_value ASC");
-        while ($row = $yearRes->fetch_assoc()) {
-          $years[] = $row;
+        include 'config/db.php';
+        
+        // Get current week and year
+        $currentWeek = date('W');
+        $currentYear = date('Y');
+        
+        // Get current week ID from database
+        $currentWeekId = 1; // default
+        $weekRes = $conn->query("SELECT id FROM week WHERE week_number = $currentWeek");
+        if ($weekRes->num_rows > 0) {
+            $weekRow = $weekRes->fetch_assoc();
+            $currentWeekId = $weekRow['id'];
         }
-        // Get weeks
-        $weeks = [];
-        $weekRes = $conn->query("SELECT * FROM week ORDER BY week_number ASC");
-        while ($row = $weekRes->fetch_assoc()) {
-          $weeks[] = $row;
+        
+        // Get current year ID from database
+        $currentYearId = 1; // default
+        $yearRes = $conn->query("SELECT id FROM year WHERE year_value = $currentYear");
+        if ($yearRes->num_rows > 0) {
+            $yearRow = $yearRes->fetch_assoc();
+            $currentYearId = $yearRow['id'];
         }
+
         // Get plants
         $plants = [];
         $plantRes = $conn->query("SELECT * FROM plant ORDER BY name ASC");
@@ -107,35 +118,30 @@
         while ($row = $shiftRes->fetch_assoc()) {
           $shifts[] = $row;
         }
-        // Get menus for default week (week_id = 1)
-        $menus = [];
-        $menuRes = $conn->query("SELECT * FROM menu WHERE week_id = 1 ORDER BY FIELD(day, 'Senin','Selasa','Rabu','Kamis','Jumat','Sabtu','Minggu')");
-        while ($row = $menuRes->fetch_assoc()) {
-          $menus[] = $row;
-        }
+        
+        // Define days of the week
+        $days = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
         ?>
         <div class="card shadow-sm p-4">
-          <h4 class="mb-4"><i class="bi bi-calendar-week"></i> Select Week & Year</h4>
-          <form method="post" action="execution/process_order.php"> <!-- Ganti dengan halaman PHP untuk memproses order -->
+          <h4 class="mb-4"><i class="bi bi-calendar-week"></i> Food Order - Week <?= $currentWeek ?>, <?= $currentYear ?></h4>
+          <form method="post" action="execution/process_order.php">
               <div class="row g-3">
-                  <!-- Week -->
+                  <!-- Week (Hidden but passed in form) -->
+                  <input type="hidden" id="weekSelect" name="week" value="<?= $currentWeekId ?>">
+                  
+                  <!-- Year (Hidden but passed in form) -->
+                  <input type="hidden" id="yearSelect" name="year" value="<?= $currentYearId ?>">
+                  
+                  <!-- Display current week and year (readonly) -->
                   <div class="col-md-6">
                       <label class="form-label">Week</label>
-                      <select class="form-select" id="weekSelect" name="week">
-                          <?php foreach ($weeks as $week): ?>
-                              <option value="<?= $week['id'] ?>">Week <?= $week['week_number'] ?></option>
-                          <?php endforeach; ?>
-                      </select>
+                      <input type="text" class="form-control" value="Week <?= $currentWeek ?>" readonly>
                   </div>
-                  <!-- Year -->
                   <div class="col-md-6">
                       <label class="form-label">Year</label>
-                      <select class="form-select" id="yearSelect" name="year">
-                          <?php foreach ($years as $year): ?>
-                              <option value="<?= $year['id'] ?>"><?= $year['year_value'] ?></option>
-                          <?php endforeach; ?>
-                      </select>
+                      <input type="text" class="form-control" value="<?= $currentYear ?>" readonly>
                   </div>
+
                   <!-- Plant -->
                   <div class="col-md-6">
                       <label class="form-label">Plant</label>
@@ -167,28 +173,34 @@
 
               <div class="mt-4">
                   <div id="menuCards" class="row g-3">
-                      <?php foreach ($menus as $menu): ?>
+                      <?php foreach ($days as $day): ?>
                           <div class="col-md-4">
-                              <div class="card h-100 meal-card">
+                              <div class="card h-100 meal-card" data-day="<?= $day ?>">
                                   <div class="card-body">
-                                      <h5><?= $menu['day'] ?></h5>
-                                      <p><?= $menu['menu_name'] ?></p>
+                                      <h5><?= $day ?></h5>
+                                      
                                       <!-- Makan -->
                                       <div class="form-check mt-2">
-                                          <input class="form-check-input meal-checkbox" type="checkbox" name="menu_selected[]" value="<?= $menu['id'] ?>" id="makan_<?= $menu['id'] ?>">
-                                          <label class="form-check-label" for="makan_<?= $menu['id'] ?>">Makan</label>
+                                          <input class="form-check-input meal-checkbox" type="checkbox" 
+                                                 name="makan_<?= strtolower($day) ?>" value="1" 
+                                                 id="makan_<?= strtolower($day) ?>">
+                                          <label class="form-check-label" for="makan_<?= strtolower($day) ?>">Makan</label>
                                       </div>
 
                                       <!-- Kupon -->
                                       <div class="form-check">
-                                          <input class="form-check-input" type="checkbox" name="kupon[<?= $menu['id'] ?>]" value="1" id="kupon_<?= $menu['id'] ?>">
-                                          <label class="form-check-label" for="kupon_<?= $menu['id'] ?>">Kupon</label>
+                                          <input class="form-check-input" type="checkbox" 
+                                                 name="kupon_<?= strtolower($day) ?>" value="1" 
+                                                 id="kupon_<?= strtolower($day) ?>">
+                                          <label class="form-check-label" for="kupon_<?= strtolower($day) ?>">Kupon</label>
                                       </div>
 
                                       <!-- Libur -->
                                       <div class="form-check">
-                                          <input class="form-check-input" type="checkbox" name="libur[<?= $menu['id'] ?>]" value="1" id="libur_<?= $menu['id'] ?>">
-                                          <label class="form-check-label" for="libur_<?= $menu['id'] ?>">Libur</label>
+                                          <input class="form-check-input" type="checkbox" 
+                                                 name="libur_<?= strtolower($day) ?>" value="1" 
+                                                 id="libur_<?= strtolower($day) ?>">
+                                          <label class="form-check-label" for="libur_<?= strtolower($day) ?>">Libur</label>
                                       </div>
                                   </div>
                               </div>
@@ -214,7 +226,8 @@
                               <h6>Detail Order:</h6>
                               <p><strong>Plant:</strong> <span id="confirmPlant"></span></p>
                               <p><strong>Place:</strong> <span id="confirmPlace"></span></p>
-                              <p><strong>Week:</strong> <span id="confirmWeek"></span></p>
+                              <p><strong>Week:</strong> Week <?= $currentWeek ?></p>
+                              <p><strong>Year:</strong> <?= $currentYear ?></p>
                               <p><strong>Shift:</strong> <span id="confirmShift"></span></p>
                             </div>
                             <div class="col-md-6">
@@ -229,7 +242,6 @@
                               <thead>
                                 <tr>
                                   <th>Hari</th>
-                                  <th>Menu</th>
                                   <th>Status</th>
                                 </tr>
                               </thead>
@@ -276,7 +288,6 @@
               </div>
           </form>
       </div>
-
 
 <style>
     /* Warna default */
@@ -332,9 +343,10 @@ document.querySelectorAll('.meal-card').forEach(card => {
 function updateCardColor(card) {
   card.classList.remove('makan-selected', 'kupon-selected', 'libur-selected');
   
-  const makanChecked = card.querySelector('input[id^="makan_"]').checked;
-  const kuponChecked = card.querySelector('input[id^="kupon_"]').checked;
-  const liburChecked = card.querySelector('input[id^="libur_"]').checked;
+  const day = card.dataset.day;
+  const makanChecked = document.getElementById('makan_' + day.toLowerCase()).checked;
+  const kuponChecked = document.getElementById('kupon_' + day.toLowerCase()).checked;
+  const liburChecked = document.getElementById('libur_' + day.toLowerCase()).checked;
   
   if (makanChecked) {
     card.classList.add('makan-selected');
@@ -347,34 +359,6 @@ function updateCardColor(card) {
 
 // Inisialisasi warna saat halaman dimuat
 document.querySelectorAll('.meal-card').forEach(updateCardColor);
-</script>
-
-<script>
-document.querySelectorAll('.form-check').forEach(group => {
-  const inputs = group.querySelectorAll('input[type="checkbox"]');
-  inputs.forEach(input => {
-    input.addEventListener('change', function() {
-      if (this.checked) {
-        // Dapatkan nama group untuk satu menu, berdasarkan id input
-        // Misal: makan_3, kupon_3, libur_3 -> ambil angka 3 sebagai id menu
-        const menuId = this.id.split('_')[1];
-        
-        // Cari semua checkbox dengan menuId sama, kecuali yang ini
-        const relatedCheckboxes = document.querySelectorAll(
-          `input[type="checkbox"][id$="_${menuId}"]:not(#${this.id})`
-        );
-        
-        // Uncheck yang lain
-        relatedCheckboxes.forEach(cb => cb.checked = false);
-
-        // Update warna kartu dan summary
-        const card = this.closest('.meal-card');
-        if (card) updateCardColor(card);
-        updateSummary();
-      }
-    });
-  });
-});
 </script>
 
 <script>
@@ -414,7 +398,6 @@ document.querySelectorAll('.form-check').forEach(group => {
       // Isi detail konfirmasi
       document.getElementById('confirmPlant').textContent = document.getElementById('plantSelect').options[document.getElementById('plantSelect').selectedIndex].text;
       document.getElementById('confirmPlace').textContent = document.getElementById('placeSelect').options[document.getElementById('placeSelect').selectedIndex].text;
-      document.getElementById('confirmWeek').textContent = 'Week ' + document.getElementById('weekSelect').options[document.getElementById('weekSelect').selectedIndex].text;
       document.getElementById('confirmShift').textContent = document.getElementById('shiftSelect').options[document.getElementById('shiftSelect').selectedIndex].text;
 
       // Hitung total setiap jenis
@@ -429,16 +412,15 @@ document.querySelectorAll('.form-check').forEach(group => {
       // Isi tabel menu dan hitung total
       document.querySelectorAll('.meal-card').forEach(card => {
         const day = card.querySelector('h5').textContent;
-        const menu = card.querySelector('p').textContent;
         let status = '';
 
-        if (card.querySelector('input[id^="makan_"]:checked')) {
+        if (document.getElementById('makan_' + day.toLowerCase()).checked) {
           status = 'Makan';
           totalMakan++;
-        } else if (card.querySelector('input[id^="kupon_"]:checked')) {
+        } else if (document.getElementById('kupon_' + day.toLowerCase()).checked) {
           status = 'Kupon';
           totalKupon++;
-        } else if (card.querySelector('input[id^="libur_"]:checked')) {
+        } else if (document.getElementById('libur_' + day.toLowerCase()).checked) {
           status = 'Libur';
           totalLibur++;
         }
@@ -446,7 +428,6 @@ document.querySelectorAll('.form-check').forEach(group => {
         const row = document.createElement('tr');
         row.innerHTML = `
           <td>${day}</td>
-          <td>${menu}</td>
           <td><span class="badge bg-${status === 'Makan' ? 'primary' : status === 'Kupon' ? 'danger' : 'secondary'}">${status}</span></td>
         `;
         menuList.appendChild(row);
@@ -471,115 +452,7 @@ document.querySelectorAll('.form-check').forEach(group => {
     });
 </script>
 
-
 <script>
-  // AJAX: Update menu cards when week changes
-  document.getElementById('weekSelect').addEventListener('change', function() {
-    var weekId = this.value;
-    fetch('config/get_menus.php?week_id=' + weekId)
-      .then(response => response.json())
-      .then(data => {
-        var menuRow = document.getElementById('menuCards');
-        menuRow.innerHTML = '';
-        // Reset save button state
-        document.getElementById('saveOrderBtn').disabled = true;
-        data.forEach(function(menu) {
-          var col = document.createElement('div');
-          col.className = 'col-md-4';
-          col.innerHTML = `<div class="card h-100 meal-card">
-            <div class="card-body">
-              <h5>${menu.day}</h5>
-              <p>${menu.menu_name}</p>
-              <!-- Makan -->
-              <div class="form-check mt-2">
-                <input class="form-check-input meal-checkbox" type="checkbox" name="menu_selected[]" value="${menu.id}" id="makan_${menu.id}">
-                <label class="form-check-label" for="makan_${menu.id}">Makan</label>
-              </div>
-              <!-- Kupon -->
-              <div class="form-check">
-                <input class="form-check-input" type="checkbox" name="kupon[${menu.id}]" value="1" id="kupon_${menu.id}">
-                <label class="form-check-label" for="kupon_${menu.id}">Kupon</label>
-              </div>
-              <!-- Libur -->
-              <div class="form-check">
-                <input class="form-check-input" type="checkbox" name="libur[${menu.id}]" value="1" id="libur_${menu.id}">
-                <label class="form-check-label" for="libur_${menu.id}">Libur</label>
-              </div>
-            </div>
-          </div>`;
-          menuRow.appendChild(col);
-        });
-        // Re-apply event listeners for all checkboxes
-        document.querySelectorAll('.meal-card input[type="checkbox"]').forEach(checkbox => {
-          checkbox.addEventListener('change', function() {
-            const card = this.closest('.meal-card');
-            if (this.checked) {
-              // Uncheck other checkboxes in the same card
-              const otherCheckboxes = card.querySelectorAll('input[type="checkbox"]:not(#' + this.id + ')');
-              otherCheckboxes.forEach(cb => cb.checked = false);
-            }
-            updateCardColor(card);
-            updateSummary();
-            checkAllDaysSelected();
-          });
-        });
-
-        // Attach exclusive selection and color update for newly loaded cards
-        document.querySelectorAll('#menuCards .meal-card').forEach(card => {
-          const checkboxes = card.querySelectorAll('input[type="checkbox"]');
-          checkboxes.forEach(cb => {
-            cb.addEventListener('change', () => {
-              if (cb.checked) {
-                checkboxes.forEach(otherCb => {
-                  if (otherCb !== cb) otherCb.checked = false;
-                });
-              }
-              updateCardColor(card);
-              updateSummary();
-            });
-          });
-          // Initialize color on load
-          updateCardColor(card);
-        });
-
-        // Ensure exclusive behavior by menuId across inputs
-        document.querySelectorAll('#menuCards .form-check input[type="checkbox"]').forEach(input => {
-          input.addEventListener('change', function() {
-            if (this.checked && this.id.includes('_')) {
-              const menuId = this.id.split('_')[1];
-              document.querySelectorAll(`#menuCards input[type="checkbox"][id$="_${menuId}"]:not(#${this.id})`).forEach(cb => cb.checked = false);
-              const card = this.closest('.meal-card');
-              if (card) updateCardColor(card);
-              updateSummary();
-            }
-          });
-        });
-
-        updateSummary();
-      });
-  });
-  // Update summary saat checkbox berubah
-  function updateSummary() {
-    let count = 0;
-    document.querySelectorAll('#menuCards .meal-card').forEach(card => {
-      if (card.querySelector('input[type="checkbox"]:checked')) count++;
-    });
-    document.getElementById('summary').innerHTML = `<b>${count} days selected</b>`;
-  }
-  document.querySelectorAll('.meal-checkbox').forEach(function (checkbox) {
-    checkbox.addEventListener('change', function () {
-      const card = this.closest('.meal-card');
-      if (this.checked) {
-        card.classList.add('selected');
-      } else {
-        card.classList.remove('selected');
-      }
-      updateSummary();
-    });
-  });
-  // Inisialisasi summary saat halaman dimuat
-  updateSummary();
-
   // AJAX: Update place dropdown when plant changes
   document.getElementById('plantSelect').addEventListener('change', function() {
     var plantId = this.value;
@@ -596,6 +469,20 @@ document.querySelectorAll('.form-check').forEach(group => {
         });
       });
   });
+</script>
+
+<script>
+// Update summary saat checkbox berubah
+function updateSummary() {
+  let count = 0;
+  document.querySelectorAll('#menuCards .meal-card').forEach(card => {
+    if (card.querySelector('input[type="checkbox"]:checked')) count++;
+  });
+  document.getElementById('summary').innerHTML = `<b>${count} days selected</b>`;
+}
+
+// Inisialisasi summary saat halaman dimuat
+updateSummary();
 </script>
                     </div>
 

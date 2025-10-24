@@ -1,14 +1,4 @@
 <?php
-// Database connection for paragonapp
-$host = 'localhost';
-$user = 'root';
-$pass = '';
-$db   = 'paragonapp';
-
-$conn = new mysqli($host, $user, $pass, $db);
-
-if ($conn->connect_error) {
-    die('Connection failed: ' . $conn->connect_error);
-}
-// Usage: include 'config/db.php';
+// admin/config/db.php
+include_once __DIR__ . '/../../db_master.php';  // Path relatif ke db_master.php
 ?>

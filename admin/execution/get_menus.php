@@ -1,34 +1,25 @@
 <?php
-include "../config/db.php";
-include "../../auth.php";
+include '../config/db.php';
 
-if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['week_id'])) {
-    $week_id = mysqli_real_escape_string($conn, $_GET['week_id']);
+$week_id = $_GET['week_id'] ?? '';
+$vendor_id = $_GET['vendor_id'] ?? '';
+
+if ($week_id && $vendor_id) {
+    $query = "SELECT * FROM menu 
+              WHERE week_id = ? AND vendor_id = ? 
+              ORDER BY FIELD(day, 'Senin','Selasa','Rabu','Kamis','Jumat','Sabtu','Minggu')";
+    $stmt = $conn->prepare($query);
+    $stmt->bind_param("ii", $week_id, $vendor_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
     
-    $query = "SELECT id, day, menu_name FROM menu WHERE week_id = ? ORDER BY 
-              CASE day 
-                WHEN 'Senin' THEN 1 
-                WHEN 'Selasa' THEN 2 
-                WHEN 'Rabu' THEN 3 
-                WHEN 'Kamis' THEN 4 
-                WHEN 'Jumat' THEN 5 
-                WHEN 'Sabtu' THEN 6 
-                WHEN 'Minggu' THEN 7 
-              END";
-    
-    $stmt = mysqli_prepare($conn, $query);
-    mysqli_stmt_bind_param($stmt, "i", $week_id);
-    mysqli_stmt_execute($stmt);
-    $result = mysqli_stmt_get_result($stmt);
-    
-    $menus = array();
-    while ($row = mysqli_fetch_assoc($result)) {
+    $menus = [];
+    while ($row = $result->fetch_assoc()) {
         $menus[] = $row;
     }
     
-    header('Content-Type: application/json');
     echo json_encode($menus);
+} else {
+    echo json_encode([]);
 }
-
-mysqli_close($conn);
 ?>

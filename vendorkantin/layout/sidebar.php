@@ -77,54 +77,19 @@
               </a>
             </li>
 
-            <!-- Layouts -->
-            <li class="menu-item">
-              <a href="javascript:void(0);" class="menu-link menu-toggle">
-                <i class="menu-icon tf-icons bx bx-basket"></i>
-                <div data-i18n="Order">Order</div>
-              </a>
-              <ul class="menu-sub">
-                <li class="menu-item">
-                  <a href="food-order.php" class="menu-link">
-                    <div data-i18n="Food Order">Food Order</div>
-                  </a>
-                </li>
-                <li class="menu-item">
-                  <a href="#" class="menu-link">
-                    <div data-i18n="History">History</div>
-                  </a>
-                </li>
-              </ul>
-            </li>
-
-            <li class="menu-header small text-uppercase">
-              <span class="menu-header-text">Pages</span>
-            </li>
-            <li class="menu-item">
-              <a href="javascript:void(0);" class="menu-link menu-toggle">
-                <i class="menu-icon tf-icons bx bx-dock-top"></i>
-                <div data-i18n="Menu">Menu</div>
-              </a>
-              <ul class="menu-sub">
-                <li class="menu-item">
-                  <a href="#" class="menu-link">
-                    <div data-i18n="Menu1">Menu</div>
-                  </a>
-                </li>
-                <li class="menu-item">
-                  <a href="#" class="menu-link">
-                    <div data-i18n="Change coupons">Change coupons</div>
-                  </a>
-                </li>
-              </ul>
-            </li>
             <!-- Components -->
             <li class="menu-header small text-uppercase"><span class="menu-header-text">Components</span></li>
             <!-- Cards -->
             <li class="menu-item">
-              <a href="#" class="menu-link">
+              <a href="data-makan.php" class="menu-link">
                 <i class="menu-icon tf-icons bx bx-collection"></i>
-                <div data-i18n="Basic">Notifications</div>
+                <div data-i18n="Basic">Data Makan</div>
+              </a>
+            </li>
+            <li class="menu-item">
+              <a href="validasi-user-makan.php" class="menu-link">
+                <i class="menu-icon tf-icons bx bx-collection"></i>
+                <div data-i18n="Basic">Validasi User Makan</div>
               </a>
             </li>
             <!-- Misc -->

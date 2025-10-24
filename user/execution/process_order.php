@@ -7,7 +7,7 @@ require_once '../config/db.php';  // Sesuaikan path jika perlu
 // Periksa apakah user_id ada di session
 if (!isset($_SESSION['user_id'])) {
     // Redirect ke halaman login jika user_id tidak ada
-    header("Location: login.php");
+    header("Location: ../../form_login.php");
     exit;
 }
 
@@ -22,39 +22,75 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $plant_id = $_POST['plant']; // ID Plant yang dipilih
     $place_id = $_POST['place']; // ID Place yang dipilih
     $shift_id = $_POST['shift']; // ID Shift yang dipilih
-    $selected_menus = isset($_POST['menu_selected']) ? array_map('intval', $_POST['menu_selected']) : []; // Array ID Menu yang dipilih
-    $kupon_menus = isset($_POST['kupon']) ? array_map('intval', array_keys($_POST['kupon'])) : [];
-    $libur_menus = isset($_POST['libur']) ? array_map('intval', array_keys($_POST['libur'])) : [];
-    // Gabungkan semua menu yang dipilih dari makan/kupon/libur agar setiap pilihan tersimpan
-    $all_menus = array_values(array_unique(array_merge($selected_menus, $kupon_menus, $libur_menus)));
+    
+    // Ambil data untuk setiap hari
+    $makan_senin = isset($_POST['makan_senin']) ? 1 : 0;
+    $kupon_senin = isset($_POST['kupon_senin']) ? 1 : 0;
+    $libur_senin = isset($_POST['libur_senin']) ? 1 : 0;
+    
+    $makan_selasa = isset($_POST['makan_selasa']) ? 1 : 0;
+    $kupon_selasa = isset($_POST['kupon_selasa']) ? 1 : 0;
+    $libur_selasa = isset($_POST['libur_selasa']) ? 1 : 0;
+    
+    $makan_rabu = isset($_POST['makan_rabu']) ? 1 : 0;
+    $kupon_rabu = isset($_POST['kupon_rabu']) ? 1 : 0;
+    $libur_rabu = isset($_POST['libur_rabu']) ? 1 : 0;
+    
+    $makan_kamis = isset($_POST['makan_kamis']) ? 1 : 0;
+    $kupon_kamis = isset($_POST['kupon_kamis']) ? 1 : 0;
+    $libur_kamis = isset($_POST['libur_kamis']) ? 1 : 0;
+    
+    $makan_jumat = isset($_POST['makan_jumat']) ? 1 : 0;
+    $kupon_jumat = isset($_POST['kupon_jumat']) ? 1 : 0;
+    $libur_jumat = isset($_POST['libur_jumat']) ? 1 : 0;
+    
+    $makan_sabtu = isset($_POST['makan_sabtu']) ? 1 : 0;
+    $kupon_sabtu = isset($_POST['kupon_sabtu']) ? 1 : 0;
+    $libur_sabtu = isset($_POST['libur_sabtu']) ? 1 : 0;
+    
+    $makan_minggu = isset($_POST['makan_minggu']) ? 1 : 0;
+    $kupon_minggu = isset($_POST['kupon_minggu']) ? 1 : 0;
+    $libur_minggu = isset($_POST['libur_minggu']) ? 1 : 0;
 
     // Mulai transaksi untuk memastikan atomisitas
-    $conn->begin_transaction();  // Menggunakan $conn, bukan $mysqli
+    $conn->begin_transaction();
 
     try {
-        // 1. Insert data ke tabel orders, termasuk user_id
-        $stmt = $conn->prepare("INSERT INTO orders (week_id, year_id, plant_id, place_id, shift_id, user_id) VALUES (?, ?, ?, ?, ?, ?)");
-        $stmt->bind_param("iiiiii", $week_id, $year_id, $plant_id, $place_id, $shift_id, $user_id);
+        // 1. Insert data ke tabel orders dengan semua kolom hari
+        $stmt = $conn->prepare("INSERT INTO orders (
+            week_id, year_id, plant_id, place_id, shift_id, user_id,
+            makan_senin, kupon_senin, libur_senin,
+            makan_selasa, kupon_selasa, libur_selasa,
+            makan_rabu, kupon_rabu, libur_rabu,
+            makan_kamis, kupon_kamis, libur_kamis,
+            makan_jumat, kupon_jumat, libur_jumat,
+            makan_sabtu, kupon_sabtu, libur_sabtu,
+            makan_minggu, kupon_minggu, libur_minggu
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        
+        $stmt->bind_param(
+            "iiiiiiiiiiiiiiiiiiiiiiiiiii", 
+            $week_id, $year_id, $plant_id, $place_id, $shift_id, $user_id,
+            $makan_senin, $kupon_senin, $libur_senin,
+            $makan_selasa, $kupon_selasa, $libur_selasa,
+            $makan_rabu, $kupon_rabu, $libur_rabu,
+            $makan_kamis, $kupon_kamis, $libur_kamis,
+            $makan_jumat, $kupon_jumat, $libur_jumat,
+            $makan_sabtu, $kupon_sabtu, $libur_sabtu,
+            $makan_minggu, $kupon_minggu, $libur_minggu
+        );
+        
         $stmt->execute();
         
         // Ambil ID order yang baru saja disimpan
         $order_id = $conn->insert_id;
         
-        // 2. Insert data ke tabel order_menus (relasi antara order dan menu)
-        if (!empty($all_menus)) {
-            $stmt = $conn->prepare("INSERT INTO order_menus (order_id, menu_id, makan, kupon, libur) VALUES (?, ?, ?, ?, ?)");
-
-            foreach ($all_menus as $menu_id) {
-                $menu_id = (int)$menu_id;
-                $makan = in_array($menu_id, $selected_menus, true) ? 1 : 0;
-                $kupon = (isset($_POST['kupon'][$menu_id]) ? 1 : 0);
-                $libur = (isset($_POST['libur'][$menu_id]) ? 1 : 0);
-
-                $stmt->bind_param("iiiii", $order_id, $menu_id, $makan, $kupon, $libur);
-                $stmt->execute();
-            }
-
-        }
+        // Hitung total kupon untuk trigger (jika masih menggunakan trigger lama)
+        $total_kupon = $kupon_senin + $kupon_selasa + $kupon_rabu + $kupon_kamis + 
+                      $kupon_jumat + $kupon_sabtu + $kupon_minggu;
+        
+        // Jika menggunakan trigger baru, tidak perlu manual insert ke kupon_history
+        // Trigger akan otomatis menangani ini
         
         // Commit transaksi
         $conn->commit();
@@ -62,14 +98,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Redirect setelah berhasil
         header("Location: ../history.php");
         exit(); // Jangan lupa untuk menghentikan eksekusi script setelah redirect
+        
     } catch (Exception $e) {
         // Rollback jika terjadi kesalahan
         $conn->rollback();
         echo "Terjadi kesalahan: " . $e->getMessage();
+        // Untuk debugging, Anda bisa tambahkan:
+        // error_log("Error in process_order.php: " . $e->getMessage());
     }
 
     // Menutup statement dan koneksi
-    $stmt->close();
+    if (isset($stmt)) {
+        $stmt->close();
+    }
     $conn->close();
+} else {
+    // Jika bukan POST request, redirect ke halaman order
+    header("Location: ../food-order.php");
+    exit();
 }
 ?>

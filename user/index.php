@@ -146,27 +146,33 @@
                     <div class="card-body">
                       <div id="chart-makan-kupon"></div>
                       <?php
-                      // Hitung total makan (order_menus.makan=1) dan total kupon (order_menus.kupon=1) untuk user ini
+                      // Hitung total makan dan kupon dari struktur tabel orders yang baru
                       $total_makan = 0;
                       $total_kupon = 0;
                       if (isset($conn) && $conn instanceof mysqli && isset($_SESSION['user_id'])) {
                         $uid = (int)$_SESSION['user_id'];
-                        // Total makan
-                        $sqlMakan = "SELECT COUNT(*) AS total FROM order_menus om JOIN orders o ON om.order_id = o.id WHERE o.user_id = ? AND om.makan = 1";
-                        if ($stmt = $conn->prepare($sqlMakan)) {
+                        
+                        // Query untuk menghitung total makan dan kupon dari semua hari
+                        $sql = "SELECT 
+                                SUM(
+                                    makan_senin + makan_selasa + makan_rabu + 
+                                    makan_kamis + makan_jumat + makan_sabtu + makan_minggu
+                                ) as total_makan,
+                                SUM(
+                                    kupon_senin + kupon_selasa + kupon_rabu + 
+                                    kupon_kamis + kupon_jumat + kupon_sabtu + kupon_minggu
+                                ) as total_kupon
+                                FROM orders 
+                                WHERE user_id = ?";
+                        
+                        if ($stmt = $conn->prepare($sql)) {
                           $stmt->bind_param('i', $uid);
                           $stmt->execute();
                           $res = $stmt->get_result();
-                          if ($row = $res->fetch_assoc()) $total_makan = (int)$row['total'];
-                          $stmt->close();
-                        }
-                        // Total kupon
-                        $sqlKupon = "SELECT COUNT(*) AS total FROM order_menus om JOIN orders o ON om.order_id = o.id WHERE o.user_id = ? AND om.kupon = 1";
-                        if ($stmt = $conn->prepare($sqlKupon)) {
-                          $stmt->bind_param('i', $uid);
-                          $stmt->execute();
-                          $res = $stmt->get_result();
-                          if ($row = $res->fetch_assoc()) $total_kupon = (int)$row['total'];
+                          if ($row = $res->fetch_assoc()) {
+                            $total_makan = (int)$row['total_makan'];
+                            $total_kupon = (int)$row['total_kupon'];
+                          }
                           $stmt->close();
                         }
                       }
@@ -175,26 +181,90 @@
                       document.addEventListener('DOMContentLoaded', function() {
                         if (window.ApexCharts) {
                           var options = {
-                            chart: { type: 'bar', height: 250 },
+                            chart: { 
+                              type: 'bar', 
+                              height: 250,
+                              toolbar: {
+                                show: false
+                              }
+                            },
                             series: [{
                               name: 'Total',
                               data: [<?= $total_makan ?>, <?= $total_kupon ?>]
                             }],
                             xaxis: {
                               categories: ['Makan', 'Kupon'],
-                              labels: { style: { fontSize: '14px' } }
+                              labels: { 
+                                style: { 
+                                  fontSize: '14px',
+                                  colors: ['#697a8d']
+                                } 
+                              },
+                              axisBorder: {
+                                show: false
+                              },
+                              axisTicks: {
+                                show: false
+                              }
                             },
-                            colors: ['#00b894', '#e74c3c'],
-                            plotOptions: { bar: { borderRadius: 6, columnWidth: '40%' } },
-                            dataLabels: { enabled: true },
-                            grid: { yaxis: { lines: { show: false } } },
-                            legend: { show: false }
+                            yaxis: {
+                              labels: {
+                                style: {
+                                  colors: ['#697a8d']
+                                }
+                              }
+                            },
+                            colors: ['#696cff', '#e74c3c'],
+                            plotOptions: { 
+                              bar: { 
+                                borderRadius: 6, 
+                                columnWidth: '40%',
+                                distributed: true
+                              } 
+                            },
+                            dataLabels: { 
+                              enabled: true,
+                              style: {
+                                fontSize: '12px',
+                                colors: ['#fff']
+                              }
+                            },
+                            grid: { 
+                              borderColor: '#f5f5f5',
+                              strokeDashArray: 4,
+                              yaxis: { 
+                                lines: { 
+                                  show: true 
+                                } 
+                              },
+                              xaxis: {
+                                lines: {
+                                  show: false
+                                }
+                              }
+                            },
+                            legend: { 
+                              show: false 
+                            },
+                            tooltip: {
+                              y: {
+                                formatter: function(val) {
+                                  return val + " kali"
+                                }
+                              }
+                            }
                           };
                           var chart = new ApexCharts(document.querySelector('#chart-makan-kupon'), options);
                           chart.render();
                         }
                       });
                       </script>
+                      <div class="mt-3 text-center">
+                        <small class="text-muted">
+                          Total Makan: <strong><?= $total_makan ?></strong> | 
+                          Total Kupon: <strong><?= $total_kupon ?></strong>
+                        </small>
+                      </div>
                     </div>
                   </div>
                 </div>

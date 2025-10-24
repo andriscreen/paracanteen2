@@ -1,18 +1,6 @@
 <?php
 /**
- * Order History Page
- *
- * Implementations:
- * - Secure includes using absolute paths and require_once
- * - Session validation and role checking with safe casting
- * - Robust SQL with backticked identifiers for reserved words
- * - Dynamic prepared statements with comprehensive error handling
- * - mysqlnd-safe fallback for fetching results
- * - Consistent HTML escaping helper (e)
- * - Empty-state handling when no records exist
- * - Server-side pagination with validated inputs and filter preservation
- * - Date filter validation with index-friendly comparisons (no DATE() wrapping)
- * - Dropdown queries hardened and escaped; resources freed
+ * Order History Page - Updated for new orders structure
  */
 
 require_once __DIR__ . '/config/db.php';
@@ -35,11 +23,6 @@ if (!function_exists('e')) {
 
 // Helper to bind dynamic params using call_user_func_array with references
 if (!function_exists('stmt_bind_params_dyn')) {
-    /**
-     * @param mysqli_stmt $stmt
-     * @param string $types
-     * @param array $params Passed by reference internally to create references for call_user_func_array
-     */
     function stmt_bind_params_dyn(mysqli_stmt $stmt, string $types, array &$params): bool
     {
         $bind = [$types];
@@ -91,16 +74,14 @@ if ($week > 0) {
 
 $where = 'WHERE ' . implode(' AND ', $conditions);
 
-// Count total rows for consistent pagination (mirror joins to match data rows)
+// Count total rows for consistent pagination
 $countSql = "SELECT COUNT(*) AS total
 FROM `orders` o
 JOIN `year` y ON o.year_id = y.id
 JOIN `week` w ON o.week_id = w.id
 JOIN `plant` p ON o.plant_id = p.id
 JOIN `place` pl ON o.place_id = pl.id
-JOIN `order_menus` om ON o.id = om.order_id
-JOIN `menu` m ON om.menu_id = m.id
-JOIN `shift` s ON o.shift_id = s.id
+LEFT JOIN `shift` s ON o.shift_id = s.id
 $where";
 
 $countStmt = $conn->prepare($countSql);
@@ -139,37 +120,42 @@ if ($total > 0 && $page > $totalPages) {
 }
 $offset = ($page - 1) * $perPage;
 
-// Data query (paginated)
+// Data query (paginated) - UPDATED for new structure
 $selectSql = "SELECT 
     o.id AS order_id,
     y.year_value,
     w.week_number,
     p.name AS plant_name,
     pl.name AS place_name,
-    m.`day`,
-    m.menu_name AS menu_name,
     s.nama_shift AS shift_name,
-    om.makan AS makan,
-    om.kupon AS kupon,
-    om.libur AS libur,
-    o.created_at
+    o.created_at,
+    -- Monday
+    o.makan_senin, o.kupon_senin, o.libur_senin,
+    -- Tuesday
+    o.makan_selasa, o.kupon_selasa, o.libur_selasa,
+    -- Wednesday
+    o.makan_rabu, o.kupon_rabu, o.libur_rabu,
+    -- Thursday
+    o.makan_kamis, o.kupon_kamis, o.libur_kamis,
+    -- Friday
+    o.makan_jumat, o.kupon_jumat, o.libur_jumat,
+    -- Saturday
+    o.makan_sabtu, o.kupon_sabtu, o.libur_sabtu,
+    -- Sunday
+    o.makan_minggu, o.kupon_minggu, o.libur_minggu
 FROM `orders` o
 JOIN `year` y ON o.year_id = y.id
 JOIN `week` w ON o.week_id = w.id
 JOIN `plant` p ON o.plant_id = p.id
 JOIN `place` pl ON o.place_id = pl.id
-JOIN `order_menus` om ON o.id = om.order_id
-JOIN `menu` m ON om.menu_id = m.id
-JOIN `shift` s ON o.shift_id = s.id
+LEFT JOIN `shift` s ON o.shift_id = s.id
 $where
 ORDER BY 
   y.year_value DESC,
   w.week_number DESC,
-  FIELD(m.`day`, 'Senin','Selasa','Rabu','Kamis','Jumat','Sabtu','Minggu') ASC,
-  o.created_at ASC,
-  o.id ASC
+  o.created_at DESC,
+  o.id DESC
 LIMIT " . (int)$perPage . " OFFSET " . (int)$offset;
-
 
 $stmt = $conn->prepare($selectSql);
 if (!$stmt) {
@@ -199,29 +185,93 @@ if (method_exists($stmt, 'get_result')) {
         $result->free();
     }
 } else {
-    if (!$stmt->bind_result($order_id, $year_value, $week_number, $plant_name, $place_name, $day, $menu_name, $shift_name, $makan, $kupon, $libur, $created_at)) {
+    // Bind all columns for fallback
+    $bindParams = [
+        &$order_id, &$year_value, &$week_number, &$plant_name, &$place_name, &$shift_name, &$created_at,
+        &$makan_senin, &$kupon_senin, &$libur_senin,
+        &$makan_selasa, &$kupon_selasa, &$libur_selasa,
+        &$makan_rabu, &$kupon_rabu, &$libur_rabu,
+        &$makan_kamis, &$kupon_kamis, &$libur_kamis,
+        &$makan_jumat, &$kupon_jumat, &$libur_jumat,
+        &$makan_sabtu, &$kupon_sabtu, &$libur_sabtu,
+        &$makan_minggu, &$kupon_minggu, &$libur_minggu
+    ];
+    
+    if (!$stmt->bind_result(...$bindParams)) {
         http_response_code(500);
         exit('Database error (bind_result): ' . e($stmt->error));
     }
+    
     while ($stmt->fetch()) {
         $rows[] = [
-            'order_id'    => $order_id,
-            'year_value'  => $year_value,
+            'order_id' => $order_id,
+            'year_value' => $year_value,
             'week_number' => $week_number,
-            'plant_name'  => $plant_name,
-            'place_name'  => $place_name,
-            'day'         => $day,
-            'menu_name'   => $menu_name,
-            'shift_name'  => $shift_name,
-            'makan'       => (int) $makan,
-            'kupon'       => (int) $kupon,
-            'libur'       => (int) $libur,
-            'created_at'  => $created_at,
+            'plant_name' => $plant_name,
+            'place_name' => $place_name,
+            'shift_name' => $shift_name,
+            'created_at' => $created_at,
+            // Monday
+            'makan_senin' => $makan_senin, 'kupon_senin' => $kupon_senin, 'libur_senin' => $libur_senin,
+            // Tuesday
+            'makan_selasa' => $makan_selasa, 'kupon_selasa' => $kupon_selasa, 'libur_selasa' => $libur_selasa,
+            // Wednesday
+            'makan_rabu' => $makan_rabu, 'kupon_rabu' => $kupon_rabu, 'libur_rabu' => $libur_rabu,
+            // Thursday
+            'makan_kamis' => $makan_kamis, 'kupon_kamis' => $kupon_kamis, 'libur_kamis' => $libur_kamis,
+            // Friday
+            'makan_jumat' => $makan_jumat, 'kupon_jumat' => $kupon_jumat, 'libur_jumat' => $libur_jumat,
+            // Saturday
+            'makan_sabtu' => $makan_sabtu, 'kupon_sabtu' => $kupon_sabtu, 'libur_sabtu' => $libur_sabtu,
+            // Sunday
+            'makan_minggu' => $makan_minggu, 'kupon_minggu' => $kupon_minggu, 'libur_minggu' => $libur_minggu
         ];
     }
 }
 
 $stmt->close();
+
+// Function to get day information from order
+function getDayInfo($order, $day) {
+    $dayLower = strtolower($day);
+    $makan = $order["makan_{$dayLower}"] ?? 0;
+    $kupon = $order["kupon_{$dayLower}"] ?? 0;
+    $libur = $order["libur_{$dayLower}"] ?? 0;
+    
+    $info = [];
+    if ($makan == 1) $info[] = 'Makan';
+    if ($kupon == 1) $info[] = 'Kupon';
+    if ($libur == 1) $info[] = 'Libur';
+    
+    return [
+        'day' => $day,
+        'info' => $info ? implode(', ', $info) : '-'
+    ];
+}
+
+// Prepare data for display - convert orders to day-based rows
+$displayRows = [];
+$days = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
+
+foreach ($rows as $order) {
+    foreach ($days as $day) {
+        $dayInfo = getDayInfo($order, $day);
+        // Only add row if there's some information (not all empty)
+        if ($dayInfo['info'] !== '-') {
+            $displayRows[] = [
+                'order_id' => $order['order_id'],
+                'year_value' => $order['year_value'],
+                'week_number' => $order['week_number'],
+                'plant_name' => $order['plant_name'],
+                'place_name' => $order['place_name'],
+                'shift_name' => $order['shift_name'],
+                'created_at' => $order['created_at'],
+                'day' => $dayInfo['day'],
+                'info' => $dayInfo['info']
+            ];
+        }
+    }
+}
 
 // Helpers for pagination UI
 $basePath = basename($_SERVER['PHP_SELF']);
@@ -287,7 +337,7 @@ $to = $total === 0 ? 0 : min($offset + $perPage, $total);
               <div class="d-flex justify-content-between align-items-center mb-3">
                 <h4 class="mb-0"><i class="bi bi-clock-history"></i> Order History</h4>
                 <div class="text-muted small">
-                  Showing <?= e($from) ?>–<?= e($to) ?> of <?= e($total) ?>
+                  Showing <?= e($from) ?>–<?= e($to) ?> of <?= e($total) ?> orders
                 </div>
               </div>
               <div class="mb-3">
@@ -347,20 +397,19 @@ $to = $total === 0 ? 0 : min($offset + $perPage, $total);
                         <th>Plant</th>
                         <th>Place</th>
                         <th>Day</th>
-                        <th>Menu</th>
                         <th>Shift</th>
                         <th>Information</th>
                         <th>Date Ordered</th>
                       </tr>
                     </thead>
                     <tbody>
-                    <?php if (count($rows) === 0): ?>
+                    <?php if (count($displayRows) === 0): ?>
                       <tr>
-                        <td colspan="10" class="text-center">No order history found.</td>
+                        <td colspan="9" class="text-center">No order history found.</td>
                       </tr>
                     <?php else: ?>
                       <?php $no = $offset + 1; ?>
-                      <?php foreach ($rows as $r): ?>
+                      <?php foreach ($displayRows as $r): ?>
                         <tr>
                           <td><?= e($no++) ?></td>
                           <td><?= e($r['year_value']) ?></td>
@@ -368,18 +417,9 @@ $to = $total === 0 ? 0 : min($offset + $perPage, $total);
                           <td><?= e($r['plant_name']) ?></td>
                           <td><?= e($r['place_name']) ?></td>
                           <td><?= e($r['day']) ?></td>
-                          <td><?= e($r['menu_name']) ?></td>
                           <td><?= e($r['shift_name']) ?></td>
-                          <td>
-                            <?php
-                              $info = [];
-                              if (isset($r['makan']) && (int)$r['makan'] === 1) $info[] = 'Makan';
-                              if (isset($r['kupon']) && (int)$r['kupon'] === 1) $info[] = 'Kupon';
-                              if (isset($r['libur']) && (int)$r['libur'] === 1) $info[] = 'Libur';
-                              echo e($info ? implode(', ', $info) : '-');
-                            ?>
-                          </td>
-                          <td><?= e(!empty($r['created_at']) ? date('Y-m-d', strtotime($r['created_at'])) : '-') ?></td>
+                          <td><?= e($r['info']) ?></td>
+                          <td><?= e(!empty($r['created_at']) ? date('Y-m-d H:i', strtotime($r['created_at'])) : '-') ?></td>
                         </tr>
                       <?php endforeach; ?>
                     <?php endif; ?>

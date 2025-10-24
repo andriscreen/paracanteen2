@@ -160,6 +160,12 @@
                 <div data-i18n="Basic">Control User Order</div>
               </a>
             </li>
+            <li class="menu-item">
+              <a href="data-makan.php" class="menu-link">
+                <i class="menu-icon bi bi-menu-button"></i>
+                <div data-i18n="Basic">Data Makan</div>
+              </a>
+            </li>
             <!-- Misc -->
             <li class="menu-header small text-uppercase"><span class="menu-header-text">Misc</span></li>
             <li class="menu-item">
