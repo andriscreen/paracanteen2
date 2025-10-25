@@ -51,6 +51,11 @@
                     <div data-i18n="User Account">User Account</div>
                   </a>
                 </li>
+                <li class="menu-item">
+                  <a href="manage-guest-account.php" class="menu-link">
+                    <div data-i18n="User Account">Guest Account</div>
+                  </a>
+                </li>
               </ul>
             </li>
 
@@ -88,6 +93,11 @@
                 <li class="menu-item">
                   <a href="update-menu.php" class="menu-link">
                     <div data-i18n="Vendor Name">Update Menu</div>
+                  </a>
+                </li>
+                <li class="menu-item">
+                  <a href="update-kupon.php" class="menu-link">
+                    <div data-i18n="Vendor Name">Update Sembako</div>
                   </a>
                 </li>
                 <li class="menu-item">
@@ -164,6 +174,12 @@
               <a href="data-makan.php" class="menu-link">
                 <i class="menu-icon bi bi-menu-button"></i>
                 <div data-i18n="Basic">Data Makan</div>
+              </a>
+            </li>
+            <li class="menu-item">
+              <a href="data-makan-guest.php" class="menu-link">
+                <i class="menu-icon bi bi-menu-button"></i>
+                <div data-i18n="Basic">Data Makan Guest</div>
               </a>
             </li>
             <!-- Misc -->

@@ -86,6 +86,12 @@
                 <div data-i18n="Basic">Data Makan</div>
               </a>
             </li>
+              <li class="menu-item">
+              <a href="data-makan-guest.php" class="menu-link">
+                <i class="menu-icon tf-icons bx bx-collection"></i>
+                <div data-i18n="Basic">Data Makan Tamu</div>
+              </a>
+            </li>
             <li class="menu-item">
               <a href="validasi-user-makan.php" class="menu-link">
                 <i class="menu-icon tf-icons bx bx-collection"></i>
@@ -96,11 +102,11 @@
             <li class="menu-header small text-uppercase"><span class="menu-header-text">Misc</span></li>
             <li class="menu-item">
               <a
-                href="#"
+                href="redemption-list.php"
                 class="menu-link"
               >
-                <i class="menu-icon tf-icons bx bx-support"></i>
-                <div data-i18n="Support">Support</div>
+                <i class="menu-icon tf-icons bx bx-file"></i>
+                <div data-i18n="Support">Penukaran Kupon Merah</div>
               </a>
             </li>
             <li class="menu-item">

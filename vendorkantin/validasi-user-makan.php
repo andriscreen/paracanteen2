@@ -562,7 +562,7 @@ $today_validations = $conn->query("
             // Auto close after 3 seconds for success
             if (status === 'success') {
                 clearTimeout(autoCloseTimer);
-                autoCloseTimer = setTimeout(closeModal, 3000);
+                autoCloseTimer = setTimeout(closeModal, 6000);
             }
         }
         

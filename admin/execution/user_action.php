@@ -10,8 +10,9 @@ if ($action === 'add') {
     $nip        = mysqli_real_escape_string($conn, $_POST['nip'] ?? '');
     $gmail      = mysqli_real_escape_string($conn, $_POST['gmail'] ?? '');
     $password   = mysqli_real_escape_string($conn, $_POST['password'] ?? '');
-    $departemen = mysqli_real_escape_string($conn, $_POST['departemen'] ?? '');  // pastikan ini sesuai dengan tipe data di DB
-    $total_kupon = intval($_POST['total_kupon'] ?? 0);  // total kupon diasumsikan integer
+    $rfid       = mysqli_real_escape_string($conn, $_POST['rfid'] ?? '');
+    $departemen = mysqli_real_escape_string($conn, $_POST['departemen'] ?? '');
+    $total_kupon = intval($_POST['total_kupon'] ?? 0);
 
     // Validasi input dasar
     if (empty($nama) || empty($nip) || empty($gmail) || empty($password) || empty($departemen)) {
@@ -19,10 +20,19 @@ if ($action === 'add') {
         exit;
     }
 
+    // Cek apakah RFID sudah digunakan (jika diisi)
+    if (!empty($rfid)) {
+        $check_rfid = mysqli_query($conn, "SELECT id FROM users WHERE rfid = '$rfid'");
+        if (mysqli_num_rows($check_rfid) > 0) {
+            echo "<script>alert('RFID already exists! Please use a different RFID.'); window.history.back();</script>";
+            exit;
+        }
+    }
+
     // Simpan ke database
     $query = "
-        INSERT INTO users (nama, nip, gmail, password, departemen, total_kupon, created_at)
-        VALUES ('$nama', '$nip', '$gmail', MD5('$password'), '$departemen', $total_kupon, NOW())
+        INSERT INTO users (nama, nip, gmail, password, rfid, departemen, total_kupon, created_at)
+        VALUES ('$nama', '$nip', '$gmail', MD5('$password'), " . (empty($rfid) ? "NULL" : "'$rfid'") . ", '$departemen', $total_kupon, NOW())
     ";
 
     if (mysqli_query($conn, $query)) {
@@ -54,41 +64,40 @@ elseif ($action === 'update') {
     $nip          = mysqli_real_escape_string($conn, $_POST['nip'] ?? '');
     $gmail        = mysqli_real_escape_string($conn, $_POST['gmail'] ?? '');
     $password     = mysqli_real_escape_string($conn, $_POST['password'] ?? '');
-    $departemen   = mysqli_real_escape_string($conn, $_POST['departemen'] ?? '');  // perhatikan ini
+    $rfid         = mysqli_real_escape_string($conn, $_POST['rfid'] ?? '');
+    $departemen   = mysqli_real_escape_string($conn, $_POST['departemen'] ?? '');
     $total_kupon  = intval($_POST['total_kupon'] ?? 0);
 
     // Validasi untuk kolom yang wajib diupdate
-    if (empty($nip) && empty($nama) && empty($gmail)) {
-        echo "<script>alert('At least one of Name, NIP, or Gmail should be provided for update!'); window.history.back();</script>";
+    if (empty($nama) || empty($nip) || empty($gmail) || empty($departemen)) {
+        echo "<script>alert('Name, NIP, Gmail, and Department are required fields!'); window.history.back();</script>";
         exit;
+    }
+
+    // Cek apakah RFID sudah digunakan oleh user lain (jika diisi)
+    if (!empty($rfid)) {
+        $check_rfid = mysqli_query($conn, "SELECT id FROM users WHERE rfid = '$rfid' AND id != $id");
+        if (mysqli_num_rows($check_rfid) > 0) {
+            echo "<script>alert('RFID already exists! Please use a different RFID.'); window.history.back();</script>";
+            exit;
+        }
     }
 
     // Siapkan query update yang fleksibel
     $update_parts = [];
 
-    // Update `nama` jika ada perubahan
-    if (!empty($nama)) {
-        $update_parts[] = "nama = '$nama'";
-    }
+    // Update field yang wajib
+    $update_parts[] = "nama = '$nama'";
+    $update_parts[] = "nip = '$nip'";
+    $update_parts[] = "gmail = '$gmail'";
+    $update_parts[] = "departemen = '$departemen'";
+    $update_parts[] = "total_kupon = $total_kupon";
 
-    // Update `nip` jika ada perubahan
-    if (!empty($nip)) {
-        $update_parts[] = "nip = '$nip'";
-    }
-
-    // Update `gmail` jika ada perubahan
-    if (!empty($gmail)) {
-        $update_parts[] = "gmail = '$gmail'";
-    }
-
-    // Update `departemen` jika ada perubahan
-    if (!empty($departemen)) {
-        $update_parts[] = "departemen = '$departemen'";
-    }
-
-    // Update `total_kupon` jika ada perubahan
-    if ($total_kupon !== null) {
-        $update_parts[] = "total_kupon = $total_kupon";
+    // Update RFID (bisa NULL jika kosong)
+    if (!empty($rfid)) {
+        $update_parts[] = "rfid = '$rfid'";
+    } else {
+        $update_parts[] = "rfid = NULL";
     }
 
     // Update `password` jika ada perubahan
@@ -96,18 +105,14 @@ elseif ($action === 'update') {
         $update_parts[] = "password = MD5('$password')";
     }
 
-    // Jika ada perubahan, gabungkan semua update
-    if (!empty($update_parts)) {
-        $update_query = "UPDATE users SET " . implode(", ", $update_parts) . ", updated_at = NOW() WHERE id = $id";
-        
-        // Eksekusi query
-        if (mysqli_query($conn, $update_query)) {
-            echo "<script>alert('User updated successfully!'); window.location.href='../update-user.php';</script>";
-        } else {
-            echo 'Database Error: ' . mysqli_error($conn);
-        }
+    // Gabungkan semua update
+    $update_query = "UPDATE users SET " . implode(", ", $update_parts) . ", updated_at = NOW() WHERE id = $id";
+    
+    // Eksekusi query
+    if (mysqli_query($conn, $update_query)) {
+        echo "<script>alert('User updated successfully!'); window.location.href='../update-user.php';</script>";
     } else {
-        echo "<script>alert('No changes detected!'); window.history.back();</script>";
+        echo 'Database Error: ' . mysqli_error($conn);
     }
 }
 

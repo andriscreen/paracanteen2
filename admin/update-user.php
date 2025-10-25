@@ -14,8 +14,9 @@ $plant_result = mysqli_query($conn, $plant_query);
 $user_data = null;
 if (isset($_GET['id'])) {
     $user_id = mysqli_real_escape_string($conn, $_GET['id']);
-    $user_query = "SELECT u.*, u.departemen AS dept_name 
-                   FROM users u
+    $user_query = "SELECT u.*, d.name AS dept_name 
+                   FROM users u 
+                   LEFT JOIN department d ON u.departemen = d.id 
                    WHERE u.id = ?";
     $stmt = mysqli_prepare($conn, $user_query);
     mysqli_stmt_bind_param($stmt, "i", $user_id);
@@ -138,21 +139,26 @@ if (isset($_GET['id'])) {
                                             <input type="email" class="form-control" name="gmail" value="<?= htmlspecialchars($user_data['gmail']) ?>" required>
                                         </div>
                                         <div class="col-md-6">
-                                            <label class="form-label">New Password</label>
-                                            <input type="password" class="form-control" name="password" placeholder="Leave blank to keep current password">
-                                            <small class="text-muted">Fill only if you want to change the password</small>
+                                            <label class="form-label">RFID</label>
+                                            <input type="text" class="form-control" name="rfid" value="<?= htmlspecialchars($user_data['rfid'] ?? '') ?>" placeholder="Enter RFID number">
+                                            <small class="text-muted">Leave blank if no RFID assigned</small>
                                         </div>
                                     </div>
 
                                     <div class="row mb-3">
                                         <div class="col-md-6">
+                                            <label class="form-label">New Password</label>
+                                            <input type="password" class="form-control" name="password" placeholder="Leave blank to keep current password">
+                                            <small class="text-muted">Fill only if you want to change the password</small>
+                                        </div>
+                                        <div class="col-md-6">
                                             <label class="form-label">Department</label>
-                                            <select name="department_id" class="form-select" required>
+                                            <select name="departemen" class="form-select" required>
                                                 <option value="">Select Department</option>
                                                 <?php
                                                 mysqli_data_seek($dept_result, 0);
                                                 while ($dept = mysqli_fetch_assoc($dept_result)) {
-                                                    $selected = ($dept['id'] == $user_data['department_id']) ? 'selected' : '';
+                                                    $selected = ($dept['id'] == $user_data['departemen']) ? 'selected' : '';
                                                     echo "<option value='{$dept['id']}' {$selected}>{$dept['name']}</option>";
                                                 }
                                                 ?>

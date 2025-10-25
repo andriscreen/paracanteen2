@@ -1,5 +1,5 @@
 <?php include "../auth.php"; ?>
-<?php if ($_SESSION['role'] !== 'admin') { header("Location: ../form_login.php"); exit; } ?>
+<?php if ($_SESSION['role'] !== 'pickantin') { header("Location: ../form_login.php"); exit; } ?>
 <?php include 'config/db.php'; ?>
 
 <?php

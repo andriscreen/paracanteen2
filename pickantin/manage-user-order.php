@@ -74,26 +74,63 @@ if (isset($_POST['delete_order'])) {
     $conn->begin_transaction();
     
     try {
-        // Hapus dari order_menus terlebih dahulu
-        $deleteMenus = $conn->prepare("DELETE FROM order_menus WHERE order_id = ?");
-        $deleteMenus->bind_param("i", $order_id);
-        $deleteMenus->execute();
+        // Pertama, dapatkan jumlah kupon yang akan dihapus dan user_id
+        $getKuponQuery = "SELECT user_id, 
+                                 (kupon_senin + kupon_selasa + kupon_rabu + 
+                                  kupon_kamis + kupon_jumat + kupon_sabtu + kupon_minggu) as total_kupon 
+                          FROM orders WHERE id = ?";
+        $stmt = $conn->prepare($getKuponQuery);
+        $stmt->bind_param("i", $order_id);
+        $stmt->execute();
+        $kuponData = $stmt->get_result()->fetch_assoc();
+        
+        if (!$kuponData) {
+            throw new Exception("Order tidak ditemukan!");
+        }
+        
+        $user_id = $kuponData['user_id'];
+        $total_kupon_dihapus = $kuponData['total_kupon'];
+        
+        // Safety check: pastikan user masih ada
+        $checkUser = $conn->prepare("SELECT id FROM users WHERE id = ?");
+        $checkUser->bind_param("i", $user_id);
+        $checkUser->execute();
+        
+        if ($checkUser->get_result()->num_rows === 0) {
+            throw new Exception("User tidak ditemukan!");
+        }
         
         // Hapus dari kupon_history jika ada
         $deleteKupon = $conn->prepare("DELETE FROM kupon_history WHERE order_id = ?");
         $deleteKupon->bind_param("i", $order_id);
         $deleteKupon->execute();
         
+        // Hapus dari meal_validations jika ada
+        $deleteValidations = $conn->prepare("DELETE FROM meal_validations WHERE order_id = ?");
+        $deleteValidations->bind_param("i", $order_id);
+        $deleteValidations->execute();
+        
         // Hapus order
         $deleteOrder = $conn->prepare("DELETE FROM orders WHERE id = ?");
         $deleteOrder->bind_param("i", $order_id);
         $deleteOrder->execute();
+        
+        // Kurangi kupon dari user jika ada kupon yang dihapus
+        if ($total_kupon_dihapus > 0) {
+            $updateUser = $conn->prepare("UPDATE users SET total_kupon = GREATEST(0, total_kupon - ?) WHERE id = ?");
+            $updateUser->bind_param("ii", $total_kupon_dihapus, $user_id);
+            $updateUser->execute();
+            
+            // Log untuk debugging
+            error_log("Deleted order #$order_id: Removed $total_kupon_dihapus kupon from user #$user_id");
+        }
         
         $conn->commit();
         $_SESSION['success'] = "Order berhasil dihapus!";
     } catch (Exception $e) {
         $conn->rollback();
         $_SESSION['error'] = "Gagal menghapus order: " . $e->getMessage();
+        error_log("Delete order error: " . $e->getMessage());
     }
     
     header("Location: manage-user-order.php");
@@ -114,6 +151,34 @@ function getNextOrder($currentSort, $column, $currentOrder) {
         return $currentOrder === 'ASC' ? 'DESC' : 'ASC';
     }
     return 'ASC';
+}
+
+// Fungsi untuk menghitung total hari makan dalam order
+function getTotalMakanDays($order_data) {
+    $total = 0;
+    $days = ['senin', 'selasa', 'rabu', 'kamis', 'jumat', 'sabtu', 'minggu'];
+    
+    foreach ($days as $day) {
+        if ($order_data["makan_$day"] == 1) {
+            $total++;
+        }
+    }
+    
+    return $total;
+}
+
+// Fungsi untuk menghitung total kupon dalam order
+function getTotalKuponDays($order_data) {
+    $total = 0;
+    $days = ['senin', 'selasa', 'rabu', 'kamis', 'jumat', 'sabtu', 'minggu'];
+    
+    foreach ($days as $day) {
+        if ($order_data["kupon_$day"] == 1) {
+            $total++;
+        }
+    }
+    
+    return $total;
 }
 ?>
 
@@ -199,6 +264,18 @@ function getNextOrder($currentSort, $column, $currentOrder) {
       .current-sort {
         background-color: rgba(102, 126, 234, 0.1);
         font-weight: bold;
+      }
+      .badge-makan {
+        background-color: #28a745;
+        color: white;
+      }
+      .badge-kupon {
+        background-color: #ffc107;
+        color: black;
+      }
+      .badge-libur {
+        background-color: #6c757d;
+        color: white;
       }
     </style>
 
@@ -331,31 +408,10 @@ function getNextOrder($currentSort, $column, $currentOrder) {
                                           Departemen <?= getSortIcon($sort, 'departemen', $order) ?>
                                         </a>
                                       </th>
-                                      <th class="<?= $sort === 'week_number' ? 'current-sort' : '' ?>">
-                                        <a href="?page=<?= $page ?>&search=<?= urlencode($search) ?>&sort=week_number&order=<?= getNextOrder($sort, 'week_number', $order) ?>" class="text-dark text-decoration-none sortable">
-                                          Minggu <?= getSortIcon($sort, 'week_number', $order) ?>
-                                        </a>
-                                      </th>
-                                      <th class="<?= $sort === 'year_value' ? 'current-sort' : '' ?>">
-                                        <a href="?page=<?= $page ?>&search=<?= urlencode($search) ?>&sort=year_value&order=<?= getNextOrder($sort, 'year_value', $order) ?>" class="text-dark text-decoration-none sortable">
-                                          Tahun <?= getSortIcon($sort, 'year_value', $order) ?>
-                                        </a>
-                                      </th>
-                                      <th class="<?= $sort === 'plant_name' ? 'current-sort' : '' ?>">
-                                        <a href="?page=<?= $page ?>&search=<?= urlencode($search) ?>&sort=plant_name&order=<?= getNextOrder($sort, 'plant_name', $order) ?>" class="text-dark text-decoration-none sortable">
-                                          Plant <?= getSortIcon($sort, 'plant_name', $order) ?>
-                                        </a>
-                                      </th>
-                                      <th class="<?= $sort === 'place_name' ? 'current-sort' : '' ?>">
-                                        <a href="?page=<?= $page ?>&search=<?= urlencode($search) ?>&sort=place_name&order=<?= getNextOrder($sort, 'place_name', $order) ?>" class="text-dark text-decoration-none sortable">
-                                          Place <?= getSortIcon($sort, 'place_name', $order) ?>
-                                        </a>
-                                      </th>
-                                      <th class="<?= $sort === 'nama_shift' ? 'current-sort' : '' ?>">
-                                        <a href="?page=<?= $page ?>&search=<?= urlencode($search) ?>&sort=nama_shift&order=<?= getNextOrder($sort, 'nama_shift', $order) ?>" class="text-dark text-decoration-none sortable">
-                                          Shift <?= getSortIcon($sort, 'nama_shift', $order) ?>
-                                        </a>
-                                      </th>
+                                      <th>Minggu/ Tahun</th>
+                                      <th>Plant/ Place</th>
+                                      <th>Shift</th>
+                                      <th>Detail Hari</th>
                                       <th class="<?= $sort === 'created_at' ? 'current-sort' : '' ?>">
                                         <a href="?page=<?= $page ?>&search=<?= urlencode($search) ?>&sort=created_at&order=<?= getNextOrder($sort, 'created_at', $order) ?>" class="text-dark text-decoration-none sortable">
                                           Tanggal <?= getSortIcon($sort, 'created_at', $order) ?>
@@ -365,7 +421,10 @@ function getNextOrder($currentSort, $column, $currentOrder) {
                                     </tr>
                                   </thead>
                                   <tbody>
-                                    <?php while ($order_data = $orders->fetch_assoc()): ?>
+                                    <?php while ($order_data = $orders->fetch_assoc()): 
+                                      $total_makan = getTotalMakanDays($order_data);
+                                      $total_kupon = getTotalKuponDays($order_data);
+                                    ?>
                                     <tr>
                                       <td><strong>#<?= $order_data['id'] ?></strong></td>
                                       <td><?= htmlspecialchars($order_data['user_nama']) ?></td>
@@ -377,20 +436,36 @@ function getNextOrder($currentSort, $column, $currentOrder) {
                                           <span class="text-muted">-</span>
                                         <?php endif; ?>
                                       </td>
-                                      <td>Minggu <?= $order_data['week_number'] ?></td>
-                                      <td><?= $order_data['year_value'] ?></td>
-                                      <td><?= htmlspecialchars($order_data['plant_name']) ?></td>
-                                      <td><?= htmlspecialchars($order_data['place_name']) ?></td>
+                                      <td>
+                                        <div><strong>Minggu <?= $order_data['week_number'] ?></strong></div>
+                                        <div class="text-muted small">Tahun <?= $order_data['year_value'] ?></div>
+                                      </td>
+                                      <td>
+                                        <div><strong><?= htmlspecialchars($order_data['plant_name']) ?></strong></div>
+                                        <div class="text-muted small"><?= htmlspecialchars($order_data['place_name']) ?></div>
+                                      </td>
                                       <td>
                                         <span class="badge bg-label-primary"><?= $order_data['nama_shift'] ?? '-' ?></span>
                                       </td>
+                                      <td>
+                                        <div class="d-flex gap-1 flex-wrap">
+                                          <span class="badge badge-makan" title="Hari Makan"><?= $total_makan ?> M</span>
+                                          <span class="badge badge-kupon" title="Hari Kupon"><?= $total_kupon ?> K</span>
+                                        </div>
+                                        <div class="text-muted small mt-1">
+                                          Total: <?= $total_makan + $total_kupon ?> hari
+                                        </div>
+                                      </td>
                                       <td><?= date('d/m/Y H:i', strtotime($order_data['created_at'])) ?></td>
                                       <td class="action-buttons">
-                                        <a href="execution/edit_order.php?id=<?= $order_data['id'] ?>" class="btn btn-sm btn-warning">
-                                          <i class="bx bx-edit"></i> Edit
+                                        <a href="view_order.php?id=<?= $order_data['id'] ?>" class="btn btn-sm btn-info mb-1" title="Lihat Detail">
+                                          <i class="bx bx-show"></i>
                                         </a>
-                                        <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal<?= $order_data['id'] ?>">
-                                          <i class="bx bx-trash"></i> Hapus
+                                        <a href="edit_order.php?id=<?= $order_data['id'] ?>" class="btn btn-sm btn-warning mb-1" title="Edit">
+                                          <i class="bx bx-edit"></i>
+                                        </a>
+                                        <button type="button" class="btn btn-sm btn-danger mb-1" data-bs-toggle="modal" data-bs-target="#deleteModal<?= $order_data['id'] ?>" title="Hapus">
+                                          <i class="bx bx-trash"></i>
                                         </button>
                                       </td>
                                     </tr>
@@ -407,6 +482,7 @@ function getNextOrder($currentSort, $column, $currentOrder) {
                                             <p>Apakah Anda yakin ingin menghapus order dari <strong><?= htmlspecialchars($order_data['user_nama']) ?></strong>?</p>
                                             <p><strong>Departemen:</strong> <?= htmlspecialchars($order_data['departemen']) ?></p>
                                             <p><strong>Minggu:</strong> <?= $order_data['week_number'] ?>, <strong>Plant:</strong> <?= htmlspecialchars($order_data['plant_name']) ?></p>
+                                            <p><strong>Detail:</strong> <?= $total_makan ?> hari makan, <?= $total_kupon ?> hari kupon</p>
                                             <p class="text-danger">Tindakan ini tidak dapat dibatalkan!</p>
                                           </div>
                                           <div class="modal-footer">
@@ -423,7 +499,7 @@ function getNextOrder($currentSort, $column, $currentOrder) {
                                     
                                     <?php if ($orders->num_rows === 0): ?>
                                     <tr>
-                                      <td colspan="11" class="text-center text-muted py-4">
+                                      <td colspan="10" class="text-center text-muted py-4">
                                         <i class="bx bx-inbox bx-lg mb-2"></i><br>
                                         Tidak ada data orders ditemukan
                                       </td>

@@ -55,7 +55,7 @@ Progress
     - fix pengurangan jumlah kupon (kepotong 2 kali mulu bangsad) note : jika di Mysql sudah inject minus maka di backend gk usah di kasih lagi tapi better kalo inject minus di jalankan di backend agar mudah di ubah dan gk ganggu stuktur db. DONE
     - membuat menu update data + action
     
-24. Oct 2025
+24 Oct 2025
 - Update halaman user
     - Memperbaiki tampilan menu dan input order user
 - Update halaman vendor
@@ -65,10 +65,22 @@ Progress
     - menampilkan data makan
 
 
-    PR - Mekanisme penukaran kupon (user dengan vendor)
+    PR - Mekanisme penukaran kupon (user dengan vendor) (done semua)
        - Pembuatan halaman khusus tamu.
             - update order makan tamu.
             - history
             (untuk halaman admin cek dan edit tabel baru untuk tamu makan)
             (untuk halaman vendor cek tabel baru untuk jumlah tamu makan)
             - isi tabel week tahun hari keterangan (makan atau tidak)
+
+25 Oct 2025
+- Meperbaiki mekanisme penukaran kupon yang bikin lierr
+- memperbaiki status kupon
+- memperbaiki halaman dan update menu user maupun admin
+- Membuat halaman TAMU (udah termasuk data makannya di vendor dan di admin)
+
+
+
+    PR 
+    - Rapihkan konten dashboard di admin, vendorkantin user, dan pic kantin.
+    - Membuat tagihan di halaman admin

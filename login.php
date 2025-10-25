@@ -8,7 +8,7 @@ include_once __DIR__ . '/db_master.php';  // Path relatif ke db_master.php
 $gmail    = $_POST['gmail'];
 $password = $_POST['password'];
 
-// Query cek login di semua tabel (termasuk pic_kantin)
+// Query cek login di semua tabel (termasuk guest)
 $sql = "
 SELECT 'user' AS role, id, nama, gmail
 FROM users
@@ -25,11 +25,15 @@ UNION
 SELECT 'pickantin' AS role, id, nama, gmail
 FROM pic_kantin
 WHERE gmail = ? AND password = MD5(?)
+UNION
+SELECT 'guest' AS role, id, nama, gmail
+FROM guest
+WHERE gmail = ? AND password = MD5(?) AND is_active = 1
 LIMIT 1
 ";
 
 $stmt = $conn->prepare($sql);
-$stmt->bind_param("ssssssss", $gmail, $password, $gmail, $password, $gmail, $password, $gmail, $password);
+$stmt->bind_param("ssssssssss", $gmail, $password, $gmail, $password, $gmail, $password, $gmail, $password, $gmail, $password);
 $stmt->execute();
 $result = $stmt->get_result();
 
@@ -55,6 +59,9 @@ if ($result->num_rows > 0) {
             break;
         case 'pickantin':
             header("Location: pickantin/");
+            break;
+        case 'guest':
+            header("Location: guest/");
             break;
         default:
             // Redirect ke halaman default jika role tidak dikenali
